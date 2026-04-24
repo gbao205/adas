@@ -1,0 +1,3 @@
+# Ignore datasets and sample videos
+data/samples/*.mp4
+data/samples/*.avi
