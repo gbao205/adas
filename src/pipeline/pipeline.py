@@ -1,9 +1,11 @@
 import queue
 import time
-from configs.config import QUEUE_SIZE, NUM_WORKERS
+import cv2
+from configs.config import QUEUE_SIZE, NUM_WORKERS, VISUALIZER_MAX_SIZE, VISUALIZER_SKIP_FRAMES, SHOW_WINDOW
 from src.video_input.video_reader import VideoReader
 from src.pipeline.worker import Worker
 from src.utils.fps import FPS
+from src.utils.visualizer import Visualizer
 
 
 class Pipeline:
@@ -19,6 +21,12 @@ class Pipeline:
             Worker(self.frame_q, self.output_q, i)
             for i in range(NUM_WORKERS)
         ]
+
+        # Visualizer
+        self.visualizer = Visualizer(
+            max_display_size=VISUALIZER_MAX_SIZE,
+            visualize_every_n_frames=VISUALIZER_SKIP_FRAMES
+        )
 
         self.fps = FPS()
         self.running = False
@@ -41,32 +49,50 @@ class Pipeline:
         try:
             while True:
                 try:
-                    yolo_img, deeplab_img = self.output_q.get(timeout=2)
+                    frame, yolo_img, deeplab_img = self.output_q.get(timeout=2)
                 except queue.Empty:
                     if not self.reader.running:
                         break
                     continue
 
                 # 👉 Placeholder cho model
-                # yolo_model(yolo_img)
-                # deeplab_model(deeplab_img)
+                # detections = yolo_model(yolo_img)
+                # mask = deeplab_model(deeplab_img)
+                detections = None
+                mask = None
+                warning_level = 0  # Placeholder: 0 = an toàn, >0 = cảnh báo
+
+                # Tính FPS hiện tại
+                elapsed = time.time() - start_time
+                current_fps = self.fps.count / elapsed if elapsed > 0 else 0.0
+
+                # Vẽ và hiển thị
+                display_frame = self.visualizer.draw_outputs(
+                    frame, detections, mask, warning_level, fps_value=current_fps
+                )
+
+                if SHOW_WINDOW:
+                    cv2.imshow("ADAS Pipeline", display_frame)
+                    # Nhấn 'q' để thoát, chờ 1ms để xử lý sự kiện window
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        print("[Pipeline] Nhận lệnh thoát từ ngườdùng (phím 'q')")
+                        break
 
                 self.fps.increment()
 
                 # 🔥 In thông tin mỗi 30 frame
                 if self.fps.count % 30 == 0:
-                    elapsed = time.time() - start_time
-                    fps = self.fps.count / elapsed
-
-                    print(f"[INFO] FPS: {fps:.2f}")
+                    print(f"[INFO] FPS: {current_fps:.2f}")
                     print(f"[INFO] FrameQ: {self.frame_q.qsize()} | OutputQ: {self.output_q.qsize()}")
 
                 self.output_q.task_done()
 
         except KeyboardInterrupt:
-            print("[Pipeline] Bị dừng bởi người dùng")
+            print("[Pipeline] Bị dừng bởi ngườdùng")
 
         finally:
+            if SHOW_WINDOW:
+                cv2.destroyAllWindows()
             self.stop()
 
             print("\n===== SUMMARY =====")
@@ -89,3 +115,4 @@ class Pipeline:
             w.join()
 
         print("[Pipeline] Đã dừng toàn bộ thread")
+

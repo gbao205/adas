@@ -26,8 +26,8 @@ class Worker(threading.Thread):
             yolo_img = preprocess_yolo(frame)
             deeplab_img = preprocess_deeplab(frame)
 
-            # Đưa vào output queue
-            self.out_q.put((yolo_img, deeplab_img))
+            # Đưa vào output queue (giữ lại frame gốc cho visualization)
+            self.out_q.put((frame, yolo_img, deeplab_img))
             # Đánh dấu đã xử lý xong frame
             self.in_q.task_done()
 
