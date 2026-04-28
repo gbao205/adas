@@ -1,3 +1,12 @@
-# Ignore datasets and sample videos
-data/samples/*.mp4
-data/samples/*.avi
+# Bỏ qua môi trường ảo và cache (Cực kỳ quan trọng)
+venv/
+__pycache__/
+*.pyc
+
+# Bỏ qua các file trọng số mô hình (Weights)
+*.pt
+*.pth
+
+# Bỏ qua các video/ảnh test ở thư mục gốc
+*.mp4
+*.avi
