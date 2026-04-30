@@ -4,3 +4,4 @@ ultralytics      # nếu dùng YOLOv8
 torch  # nếu dùng DeepLabV3+
 torchvision 
 decord           # nếu dùng
+psutil           # Để đo memory usage trong benchmark
