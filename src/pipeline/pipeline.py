@@ -9,6 +9,9 @@ from src.utils.visualizer import Visualizer
 from src.pipeline.perception import PerceptionAnalyzer
 from src.pipeline.inference_pipeline import ADASModelHandler
 
+# Evaluation Metrics: Import evaluation modules
+from src.evaluation.benchmark import PerformanceBenchmark
+
 
 class Pipeline:
     def __init__(self, video_path):
@@ -37,6 +40,10 @@ class Pipeline:
 
         self.fps = FPS()
         self.running = False
+        
+        # Evaluation Metrics: Performance Benchmark
+        self.benchmark = PerformanceBenchmark(window_size=100)
+        print("[+] Đã khởi tạo Performance Benchmark")
 
     def start(self):
         print("[Pipeline] Khởi động VideoReader và Workers...")
@@ -52,6 +59,9 @@ class Pipeline:
         print("[Pipeline] Đang chạy, nhấn Ctrl+C để dừng...")
 
         start_time = time.time()
+        
+        # Evaluation Metrics: Bắt đầu benchmark
+        self.benchmark.start_benchmark()
 
         try:
             while True:
@@ -62,11 +72,21 @@ class Pipeline:
                         break
                     continue
 
-                # Placeholder cho model
-                # detections = yolo_model(yolo_img)
-                # mask = deeplab_model(deeplab_img)
+                # Evaluation Metrics: Bắt đầu đo frame
+                self.benchmark.start_frame()
+
+                # Inference với timing
+                inference_start = time.time()
                 detections, mask = self.model_handler.process_frame(frame)
+                inference_time = (time.time() - inference_start) * 1000  # ms
+                self.benchmark.record_inference_time(inference_time)
+                
+                # Perception với timing
+                perception_start = time.time()
                 valid_objects = self.perception_analyzer.process(detections, mask)
+                perception_time = (time.time() - perception_start) * 1000  # ms
+                self.benchmark.record_postprocessing_time(perception_time)
+                
                 warning_level = 0  # Placeholder: 0 = an toàn, >0 = cảnh báo
 
                 if len(valid_objects) > 0:
@@ -99,10 +119,19 @@ class Pipeline:
                         break
 
                 self.fps.increment()
+                
+                # Evaluation Metrics: Kết thúc đo frame
+                self.benchmark.end_frame()
+                self.benchmark.record_gpu_memory()
 
                 # In thông tin mỗi 30 frame
                 if self.fps.count % 30 == 0:
-                    print(f"[INFO] FPS: {current_fps:.2f}")
+                    # Evaluation Metrics: Lấy metrics từ benchmark
+                    benchmark_fps = self.benchmark.get_current_fps()
+                    latency = self.benchmark.get_latency_stats()
+                    
+                    print(f"[INFO] FPS: {current_fps:.2f} (Benchmark: {benchmark_fps:.2f})")
+                    print(f"[INFO] Latency: {latency['mean']:.2f}ms (P95: {latency['p95']:.2f}ms)")
                     print(f"[INFO] FrameQ: {self.frame_q.qsize()} | OutputQ: {self.output_q.qsize()}")
 
                 self.output_q.task_done()
@@ -119,6 +148,14 @@ class Pipeline:
             print(f"Frames processed: {self.fps.count}")
             print(f"Average FPS: {self.fps.get():.2f}")
             print("===================")
+            
+            # Evaluation Metrics: In báo cáo benchmark chi tiết
+            print("\n")
+            self.benchmark.print_summary()
+            
+            # Evaluation Metrics: Kiểm tra real-time
+            realtime_status = self.benchmark.get_realtime_status(target_fps=30.0)
+            print(f"\n{realtime_status}")
 
     def stop(self):
         print("[Pipeline] Dừng pipeline...")
@@ -146,7 +183,7 @@ class Pipeline:
         # Đợi thread kết thúc
         self.reader.join()
         for w in self.workers:
-            w.join(timeout=2) # Thêm timeout 
+            w.join(timeout=2) # Evaluation Metrics timeout 
             
         print("[Pipeline] Đóng toàn bộ thread thành công")
 
