@@ -3,7 +3,7 @@ import numpy as np
 
 class DeeplabAdapter:
     def __init__(self):
-        print("[*] Đã tải module DeepLabV3+ (Chế độ Simulation V2 - Tô full mặt đường)")
+        print("[*] Đã tải module DeepLabV3+")
 
     def infer(self, frame):
         height, width = frame.shape[:2]
