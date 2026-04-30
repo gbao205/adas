@@ -55,7 +55,7 @@ class Pipeline:
                         break
                     continue
 
-                # 👉 Placeholder cho model
+                # Placeholder cho model
                 # detections = yolo_model(yolo_img)
                 # mask = deeplab_model(deeplab_img)
                 detections = None
@@ -80,7 +80,7 @@ class Pipeline:
 
                 self.fps.increment()
 
-                # 🔥 In thông tin mỗi 30 frame
+                # In thông tin mỗi 30 frame
                 if self.fps.count % 30 == 0:
                     print(f"[INFO] FPS: {current_fps:.2f}")
                     print(f"[INFO] FrameQ: {self.frame_q.qsize()} | OutputQ: {self.output_q.qsize()}")
