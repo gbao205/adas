@@ -48,16 +48,33 @@ class ADASModelHandler:
         yolo_results = self.yolo_model(frame, verbose=False)[0]
         
         detection_outputs = []
+        
+        # Mapping COCO classes to ADAS requirements:
+        # 0: person (người đi bộ)
+        # 2: car (xe hơi), 3: motorcycle (xe máy), 5: bus, 7: truck
+        # 11: stop sign (biển báo)
+        target_classes = {
+            0: "Nguoi di bo",
+            2: "Xe hoi",
+            3: "Xe may",
+            5: "Xe hoi (Bus)",
+            7: "Xe hoi (Truck)",
+            11: "Bien bao"
+        }
+        
         for box in yolo_results.boxes:
-            # Rút trích hộp bao (bounding box)
+            cls_id = int(box.cls[0].cpu().numpy())
+            if cls_id not in target_classes:
+                continue # Skip unrequired classes
+                
             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
             conf = float(box.conf[0].cpu().numpy())
-            cls_id = int(box.cls[0].cpu().numpy())
             
             detection_outputs.append({
                 "box": [x1, y1, x2, y2],
                 "confidence": conf,
-                "class_id": cls_id
+                "class_id": cls_id,
+                "label": target_classes[cls_id]
             })
 
         # ==========================================
@@ -74,6 +91,32 @@ class ADASModelHandler:
         
         # Hậu xử lý: Lấy index của class có xác suất cao nhất tại mỗi pixel
         segmentation_mask = torch.argmax(output, dim=0).cpu().numpy().astype(np.uint8)
+
+        # ==========================================
+        # WORKFLOW 2B: SIMULATED LANE SEGMENTATION
+        # (Để đạt yêu cầu demo làn đường do COCO/VOC không có class "Lane")
+        # ==========================================
+        simulated_lane_mask = np.zeros((original_h, original_w), dtype=np.uint8)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blur, 50, 150)
+        
+        # ROI tập trung vào phần nửa dưới ảnh (mặt đường)
+        roi_vertices = np.array([[(original_w * 0.1, original_h), 
+                                  (original_w * 0.45, original_h * 0.6), 
+                                  (original_w * 0.55, original_h * 0.6), 
+                                  (original_w * 0.9, original_h)]], dtype=np.int32)
+        roi_mask = np.zeros_like(edges)
+        cv2.fillPoly(roi_mask, roi_vertices, 255)
+        masked_edges = cv2.bitwise_and(edges, roi_mask)
+        
+        # Dilation để làm dày line thành lane mask
+        kernel = np.ones((10, 10), np.uint8)
+        dilated_lanes = cv2.dilate(masked_edges, kernel, iterations=2)
+        
+        # Gán label 1 cho lane
+        simulated_lane_mask[dilated_lanes > 0] = 1
+        segmentation_mask = simulated_lane_mask
 
         # Trả về đầu ra ổn định
         return detection_outputs, segmentation_mask
