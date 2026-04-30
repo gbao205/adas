@@ -6,6 +6,8 @@ from src.video_input.video_reader import VideoReader
 from src.pipeline.worker import Worker
 from src.utils.fps import FPS
 from src.utils.visualizer import Visualizer
+from src.pipeline.perception import PerceptionAnalyzer
+from src.pipeline.inference_pipeline import ADASModelHandler
 
 
 class Pipeline:
@@ -27,6 +29,11 @@ class Pipeline:
             max_display_size=VISUALIZER_MAX_SIZE,
             visualize_every_n_frames=VISUALIZER_SKIP_FRAMES
         )
+
+        # Perception
+        self.perception_analyzer = PerceptionAnalyzer(min_box_area=800)
+
+        self.model_handler = ADASModelHandler(yolo_weights_path="yolov8n.pt")
 
         self.fps = FPS()
         self.running = False
@@ -58,17 +65,30 @@ class Pipeline:
                 # Placeholder cho model
                 # detections = yolo_model(yolo_img)
                 # mask = deeplab_model(deeplab_img)
-                detections = None
-                mask = None
+                detections, mask = self.model_handler.process_frame(frame)
+                valid_objects = self.perception_analyzer.process(detections, mask)
                 warning_level = 0  # Placeholder: 0 = an toàn, >0 = cảnh báo
+
+                if len(valid_objects) > 0:
+                    # Tận dụng self.fps.count để làm ID cho Frame hiện tại
+                    print(f"\n[Perception - Frame {self.fps.count}] Lọc thành công {len(valid_objects)} vật thể:")
+                    for i, obj in enumerate(valid_objects):
+                        cls_name = "Người" if obj['class_id'] == 0 else "Xe"
+                        print(f"  -> {cls_name} {i+1}: Conf={obj['confidence']:.2f} | Vị trí={obj['position']} | Khoảng cách ảo={obj['distance_factor']:.2f}")
 
                 # Tính FPS hiện tại
                 elapsed = time.time() - start_time
                 current_fps = self.fps.count / elapsed if elapsed > 0 else 0.0
 
-                # Vẽ và hiển thị
+                # Chuyển đổi định dạng valid_objects trả về cho Visualizer vẽ
+                # Visualizer hiện tại đang mong đợi list dạng [x1, y1, x2, y2, conf, cls]
+                display_detections = []
+                for obj in valid_objects:
+                    display_detections.append([*obj["box"], obj["confidence"], obj["class_id"]])
+
+                # Vẽ lên màn hình
                 display_frame = self.visualizer.draw_outputs(
-                    frame, detections, mask, warning_level, fps_value=current_fps
+                    frame, display_detections, mask, warning_level, fps_value=current_fps
                 )
 
                 if SHOW_WINDOW:
@@ -102,17 +122,31 @@ class Pipeline:
 
     def stop(self):
         print("[Pipeline] Dừng pipeline...")
-
+        self.running = False
         self.reader.running = False
-
         for w in self.workers:
             w.running = False
+            
+        # Giải phóng các thread đang bị kẹt (block) trong Queue
+        # Bằng cách rút cạn (drain) các hàng đợi
+        while not self.frame_q.empty():
+            try:
+                self.frame_q.get_nowait()
+                self.frame_q.task_done()
+            except queue.Empty:
+                break
+                
+        while not self.output_q.empty():
+            try:
+                self.output_q.get_nowait()
+                self.output_q.task_done()
+            except queue.Empty:
+                break
 
         # Đợi thread kết thúc
         self.reader.join()
-
         for w in self.workers:
-            w.join()
-
-        print("[Pipeline] Đã dừng toàn bộ thread")
+            w.join(timeout=2) # Thêm timeout 
+            
+        print("[Pipeline] Đóng toàn bộ thread thành công")
 

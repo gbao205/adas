@@ -27,7 +27,13 @@ class Worker(threading.Thread):
             deeplab_img = preprocess_deeplab(frame)
 
             # Đưa vào output queue (giữ lại frame gốc cho visualization)
-            self.out_q.put((frame, yolo_img, deeplab_img))
+            while self.running:
+                try:
+                    self.out_q.put((frame, yolo_img, deeplab_img), timeout=1)
+                    break # Đẩy thành công thì thoát vòng lặp while nhỏ này
+                except queue.Full:
+                    # Nếu queue đầy, tiếp tục thử lại cho đến khi self.running = False
+                    continue
             # Đánh dấu đã xử lý xong frame
             self.in_q.task_done()
 
