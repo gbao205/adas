@@ -12,7 +12,7 @@ class Visualizer:
         self.alpha = 0.4
         
         # Bộ đếm frame để làm hiệu ứng nhấp nháy và giả lập tốc độ
-        self.frame_count = 0 
+        self.frame_count = 0
 
     def draw_hud_panel(self, frame, text, position, bg_color, text_color):
         """Hàm vẽ bảng thông tin (HUD) mờ đằng sau text"""
@@ -45,8 +45,16 @@ class Visualizer:
 
         # 2. VẼ BOUNDING BOXES & GIẢ LẬP KHOẢNG CÁCH
         if objects is not None:
+            # Từ điển ánh xạ class_id sang tên gọi
+            class_names = {0: "Pedestrian", 2: "Car", 3: "Motorcycle", 5: "Bus", 7: "Truck"}
+            
             for obj in objects:
                 x1, y1, x2, y2 = map(int, obj[:4])
+                
+                # Lấy class_id (nằm ở vị trí thứ 5 trong mảng YOLO trả về)
+                cls_id = int(obj[5]) if len(obj) > 5 else 2
+                obj_name = class_names.get(cls_id, "Vehicle") # Nếu không có trong dict thì để mặc định là Vehicle
+                
                 box_color = self.color_box_warning if collision_warning else self.color_box_normal
                 cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
                 
@@ -56,7 +64,8 @@ class Visualizer:
                 if collision_warning:
                     label = f"!!! BRAKE: {distance_sim}m !!!"
                 else:
-                    label = f"Car: {distance_sim}m"
+                    # Thay thế chữ "Car" cứng nhắc bằng tên thật của object
+                    label = f"{obj_name}: {distance_sim}m"
                     
                 cv2.putText(frame, label, (x1, max(y1 - 10, 0)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, box_color, 2)
 

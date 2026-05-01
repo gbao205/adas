@@ -12,7 +12,7 @@ class YoloAdapter:
         Chạy inference YOLOv8 và trả về list các box format: [x1, y1, x2, y2, conf, class_id]
         """
         # Chạy model trên frame (verbose=False để terminal không bị spam log)
-        results = self.model(frame, verbose=False)
+        results = self.model(frame, verbose=False, half=True)
         boxes_output = []
         
         for r in results:
@@ -21,8 +21,8 @@ class YoloAdapter:
                 conf = float(box.conf[0])
                 cls_id = int(box.cls[0])
                 
-                # Chỉ lọc lấy các class xe cộ: 2(Car), 3(Motorcycle), 5(Bus), 7(Truck)
-                valid_classes = [2, 3, 5, 7]
+                # Chỉ lọc lấy các class xe cộ: 0(Person), 2(Car), 3(Motorcycle), 5(Bus), 7(Truck)
+                valid_classes = [0, 2, 3, 5, 7]
                 
                 if conf > self.config.CONFIDENCE_THRESHOLD and cls_id in valid_classes:
                     # Tách tọa độ x_min, y_min, x_max, y_max
