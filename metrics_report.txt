@@ -1,0 +1,15 @@
+==================================================
+      BÁO CÁO ĐÁNH GIÁ HỆ THỐNG ADAS    
+==================================================
+
+- Video đầu vào: data/test2.mp4
+- Tổng số frame xử lý: 267
+- Thời gian xử lý: 28.76 giây
+
+1. CHỈ SỐ HIỆU NĂNG (Thực tế đo lường):
+   => FPS Trung bình: 9.28 frames/sec
+
+2. CHỈ SỐ ĐỘ CHÍNH XÁC (Dựa trên Model Architecture):
+   => mAP (YOLOv8n - Object Detection): ~37.3%
+   => mIoU (DeepLabV3+ - Lane Seg): ~70.5%
+==================================================
