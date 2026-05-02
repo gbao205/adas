@@ -76,7 +76,7 @@ class Visualizer:
         frame = self.draw_hud_panel(frame, sys_info, (20, height - 30), (0, 0, 0), (0, 255, 255))
 
         # Tốc độ thay đổi chút ít cho giống xe đang chạy
-        speed_sim = 68 + (self.frame_count % 3) 
+        speed_sim = 20 + (self.frame_count % 2)
         speed_text = f"SPEED: {speed_sim} km/h"
         frame = self.draw_hud_panel(frame, speed_text, (width - 250, height - 30), (0, 0, 0), (255, 255, 255))
 

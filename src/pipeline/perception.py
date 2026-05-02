@@ -1,18 +1,12 @@
 import numpy as np
 
 class PerceptionAnalyzer:
-    """
-    Module phụ trách bởi Đỗ Huỳnh Đức.
-    Nhiệm vụ: Perception Fusion (Ráp tọa độ) và Certification Check (Lọc nhiễu).
-    """
     def __init__(self, lane_class_id=1, min_box_area=800):
         self.lane_class_id = lane_class_id
         self.min_box_area = min_box_area
 
     def process(self, detections, lane_mask):
-        """
-        Hàm thực thi toàn bộ luồng của Đỗ Huỳnh Đức.
-        """
+        
         if not detections or lane_mask is None:
             return []
 
